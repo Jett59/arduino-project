@@ -1,10 +1,9 @@
 [package]
-name = "arduino-bluetooth"
+name = "arduino-project"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-btleplug = { version = "0.10.4", features = ["serde"] }
-tokio = { version = "1.25.0", features = ["tokio-macros", "rt", "sync", "macros", "rt-multi-thread"] }
+mongodb = "2.4.0"
+serialport = "4.2.0"
+tts = "0.25.1"

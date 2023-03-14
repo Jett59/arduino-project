@@ -1,62 +1,56 @@
 use std::{
     error::Error,
-    io::{self, stdin, stdout, Write},
+    io::{stdin, stdout, Read, Write},
     time::Duration,
 };
 
-use btleplug::{
-    api::{Central, Manager as _, Peripheral, ScanFilter},
-    platform::Manager,
-};
-use tokio::time;
+use serialport::{available_ports, SerialPortType};
+use tts::Tts;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    println!("Hello, world!");
-    let manager = Manager::new().await?;
-    let adapters = manager.adapters().await?;
-    if adapters.is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "No bluetooth!").into());
-    }
-    for adapter in adapters.iter() {
-        println!("Scanning {}", adapter.adapter_info().await?);
-        adapter
-            .start_scan(ScanFilter::default())
-            .await
-            .expect("Failed to scan");
-        time::sleep(Duration::from_secs(10)).await;
-        let peripherals = adapter.peripherals().await?;
-        if peripherals.is_empty() {
-            println!("Nothing there");
+fn read_string(reader: &mut impl Read) -> Result<String, Box<dyn Error>> {
+    let mut bytes = Vec::new();
+    loop {
+        let mut buffer = [0; 1];
+        reader.read_exact(&mut buffer)?;
+        bytes.push(buffer[0]);
+        if buffer[0] == b'\n' {
+            return Ok(String::from_utf8(bytes)?);
         }
-        let mut valid_peripherals = Vec::new();
-        for peripheral in peripherals {
-            let properties = peripheral.properties().await?.unwrap();
-            if let Some(name) = &properties.local_name {
-                println!("{}: {name}", valid_peripherals.len() + 1);
-                valid_peripherals.push((peripheral, properties));
+    }
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let ports = available_ports()?;
+    for (index, port) in ports.iter().enumerate() {
+        print!("{}: {}", index + 1, port.port_name);
+        if let SerialPortType::UsbPort(port_info) = &port.port_type {
+            let product = &port_info.product;
+            if let Some(product) = product {
+                print!(" ({})", product);
             }
         }
-        print!(">");
-        stdout().lock().flush()?;
-        let mut answer = String::new();
-        stdin().read_line(&mut answer)?;
-        let choice = answer.trim().parse::<usize>()? - 1;
-        let chosen = &valid_peripherals[choice];
-        println!("{:?}", chosen.1.local_name);
-        chosen.0.connect().await?;
-        println!("Connected");
-        let services = chosen.0.discover_services().await?;
-        println!("Services: {:#?}", services);
-        let characteristics = chosen.0.characteristics();
-        println!("Characteristics: {:#?}", characteristics);
-        // Write hello world to it.
-        let characteristic = &mut characteristics.first().expect("No characteristics");
-        loop {
-            let read_value = chosen.0.read(characteristic).await?;
-            println!("Read value: {:?}", read_value);
-        }
-        chosen.0.disconnect().await?;
+        println!();
     }
-    Ok(())
+    print!(">");
+    stdout().lock().flush()?;
+    let mut input_string = String::new();
+    stdin().read_line(&mut input_string)?;
+    let input_string = input_string.trim();
+    let mut port: Box<dyn Read> = if input_string.is_empty() {
+        Box::new(stdin().lock())
+    } else {
+        let index = input_string.parse::<usize>()? - 1;
+        let port_info = &ports[index];
+        println!("Openning {}", port_info.port_name);
+        Box::new(
+            serialport::new(&port_info.port_name, 57600)
+                .timeout(Duration::from_secs(10))
+                .open()?,
+        )
+    };
+    println!("Reading...");
+    let mut tts_engine = Tts::default()?;
+    loop {
+        tts_engine.speak(read_string(&mut port)?, true)?;
+    }
 }
