@@ -17,7 +17,7 @@ NewPing sensor2(trigPin2, echoPin2);
 NewPing sensor3(trigPin3, echoPin3);
 NewPing sensor4(trigPin4, echoPin4);
 
-long doorHeight = 0;
+long doorHeight = 210; // Or 70 for side of desk.
 int UltraSensors[] = { 0, 0, 0, 0 };
 
 void setup() {
@@ -34,8 +34,6 @@ void setup() {
 
   pinMode(trigPin4, OUTPUT);
   pinMode(echoPin4, INPUT);
-
-  doorHeight = 215;
 }
 
 void loop() {
@@ -45,13 +43,13 @@ void loop() {
 
   do {
     UltraSensors[0] = sensor1.ping_cm();
-    delay(1);
+    delay(5);
     UltraSensors[1] = sensor2.ping_cm();
-    delay(1);
+    delay(5);
     UltraSensors[2] = sensor3.ping_cm();
-    delay(1);
+    delay(5);
     UltraSensors[3] = sensor4.ping_cm();
-    delay(1);
+    delay(5);
 
     validReadingThisFrame = false;
     int highestHeightThisFrame = 0;
@@ -66,16 +64,15 @@ void loop() {
       }
     }
     if (validReadingThisFrame) {
-      height += highestHeightThisFrame;      
-    }
-    if (validReadingThisFrame) {
+      if (highestHeightThisFrame > height) {
+        height = highestHeightThisFrame;
+      }
       frameCount++;
     }
     if (frameCount > 0 && frameCount % 10 == 0) {
       Serial.println("Waiting...");
     }
   } while (validReadingThisFrame);
-  height /= frameCount;
   if (frameCount > 5) {
     Serial.println(height);
   }
