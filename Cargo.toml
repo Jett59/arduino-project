@@ -4,8 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-mongodb = { version = "2.4.0", features = ["bson-serde_with"] }
-serde = { version = "1.0.158", features = ["derive"] }
 serialport = "4.2.0"
-tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
 tts = "0.25.1"
